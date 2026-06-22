@@ -196,7 +196,7 @@
     <button class="nav-link" onclick="showPage('lojas')"><i class="ti ti-building-store" aria-hidden="true"></i>Lojas</button>
     <button class="nav-link" onclick="showPage('historico')"><i class="ti ti-history" aria-hidden="true"></i>Histórico</button>
   </div>
-  <div class="nav-footer">v1.0 — dados locais</div>
+  <div class="nav-footer">v2.0 — banco de dados</div>
 </nav>
 
 <main>
@@ -465,27 +465,51 @@
 
 <script>
 /* ---- DATA ---- */
-function load(key, def) { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } }
-function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+let itens = [];
+let lojas = [];
+let saidas = [];
 
-let itens = load('itens', [
-  { id: 1, nome: 'Toner HP CF217A', tipo: 'toner', qty: 5, min: 2, ref: 'HP LaserJet Pro M15w' },
-  { id: 2, nome: 'Toner Brother TN-1060', tipo: 'toner', qty: 1, min: 2, ref: 'Brother HL-1112' },
-  { id: 3, nome: 'Cabo HDMI 1.8m', tipo: 'periferico', qty: 8, min: 3, ref: '' },
-  { id: 4, nome: 'Mouse USB Logitech', tipo: 'periferico', qty: 0, min: 2, ref: '' },
-]);
-let lojas = load('lojas', [
-  { id: 1, nome: 'Loja Centro', cod: 'L001', end: 'Av. Afonso Pena, 500', resp: 'Ana Costa' },
-  { id: 2, nome: 'Loja Savassi', cod: 'L002', end: 'Rua Pernambuco, 230', resp: 'Carlos Melo' },
-]);
-let saidas = load('saidas', []);
-let nextItemId = load('nextItemId', 5);
-let nextLojaId = load('nextLojaId', 3);
-let nextSaidaId = load('nextSaidaId', 1);
+/* ---- API HELPER ---- */
+async function api(path, method = 'GET', body = null) {
+  const opts = { method, headers: {} };
+  if (body !== null) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || `HTTP ${res.status}`);
+  }
+  return res.json();
+}
 
-function saveAll() {
-  save('itens', itens); save('lojas', lojas); save('saidas', saidas);
-  save('nextItemId', nextItemId); save('nextLojaId', nextLojaId); save('nextSaidaId', nextSaidaId);
+/* ---- NORMALIZE (DB → frontend field names) ---- */
+function normalizeItem(i) {
+  return { id: i.id, nome: i.nome, tipo: i.tipo, qty: i.qty, min: i.min_qty, ref: i.ref || '' };
+}
+function normalizeLoja(l) {
+  return { id: l.id, nome: l.nome, cod: l.cod || '', end: l.endereco || '', resp: l.responsavel || '' };
+}
+function normalizeSaida(s) {
+  return { id: s.id, lojaId: s.loja_id, itemId: s.item_id, qty: s.qty, obs: s.obs || '', data: s.created_at };
+}
+
+/* ---- INIT ---- */
+async function init() {
+  try {
+    const [rawItens, rawLojas, rawSaidas] = await Promise.all([
+      api('/api/itens'),
+      api('/api/lojas'),
+      api('/api/saidas'),
+    ]);
+    itens = rawItens.map(normalizeItem);
+    lojas = rawLojas.map(normalizeLoja);
+    saidas = rawSaidas.map(normalizeSaida);
+  } catch (e) {
+    toast('Erro ao carregar dados: ' + (e.message || 'verifique a conexão'), 'error');
+  }
+  renderDashboard();
 }
 
 /* ---- NAV ---- */
@@ -613,34 +637,53 @@ function renderEstoque() {
     </tr>`).join('');
 }
 
-function adicionarItem() {
+async function adicionarItem() {
   const nome = document.getElementById('item-nome').value.trim();
   const tipo = document.getElementById('item-tipo').value;
   const qty = parseInt(document.getElementById('item-qty').value) || 0;
   const min = parseInt(document.getElementById('item-min').value) || 0;
   const ref = document.getElementById('item-ref').value.trim();
   if (!nome) { toast('Informe o nome do item', 'error'); return; }
-  itens.push({ id: nextItemId++, nome, tipo, qty, min, ref });
-  saveAll();
-  document.getElementById('item-nome').value = '';
-  document.getElementById('item-qty').value = '1';
-  document.getElementById('item-min').value = '2';
-  document.getElementById('item-ref').value = '';
-  renderEstoque();
-  toast('Item adicionado ao estoque');
+  try {
+    const item = await api('/api/itens', 'POST', { nome, tipo, qty, min, ref });
+    itens.push(normalizeItem(item));
+    document.getElementById('item-nome').value = '';
+    document.getElementById('item-qty').value = '1';
+    document.getElementById('item-min').value = '2';
+    document.getElementById('item-ref').value = '';
+    renderEstoque();
+    toast('Item adicionado ao estoque');
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
-function addStock(id) {
+async function addStock(id) {
   const q = parseInt(prompt('Quantas unidades adicionar?', '1'));
   if (!q || q < 1) return;
-  const i = itens.find(x => x.id === id);
-  if (i) { i.qty += q; saveAll(); renderEstoque(); toast(`+${q} unidades adicionadas`); }
+  const item = itens.find(x => x.id === id);
+  if (!item) return;
+  try {
+    const updated = await api(`/api/itens?id=${id}`, 'PUT', { nome: item.nome, tipo: item.tipo, qty: item.qty + q, min: item.min, ref: item.ref });
+    const idx = itens.findIndex(x => x.id === id);
+    itens[idx] = normalizeItem(updated);
+    renderEstoque();
+    toast(`+${q} unidades adicionadas`);
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
-function removerItem(id) {
+async function removerItem(id) {
   if (!confirm('Remover este item do estoque?')) return;
-  itens = itens.filter(i => i.id !== id);
-  saveAll(); renderEstoque(); toast('Item removido');
+  try {
+    await api(`/api/itens?id=${id}`, 'DELETE');
+    itens = itens.filter(i => i.id !== id);
+    renderEstoque();
+    toast('Item removido');
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
 function abrirEditItem(id) {
@@ -655,16 +698,23 @@ function abrirEditItem(id) {
   document.getElementById('modal-item').classList.add('show');
 }
 
-function salvarItemEdit() {
+async function salvarItemEdit() {
   const id = parseInt(document.getElementById('edit-item-id').value);
-  const i = itens.find(x => x.id === id);
-  if (!i) return;
-  i.nome = document.getElementById('edit-item-nome').value.trim();
-  i.tipo = document.getElementById('edit-item-tipo').value;
-  i.qty = parseInt(document.getElementById('edit-item-qty').value) || 0;
-  i.min = parseInt(document.getElementById('edit-item-min').value) || 0;
-  i.ref = document.getElementById('edit-item-ref').value.trim();
-  saveAll(); closeModal('modal-item'); renderEstoque(); toast('Item atualizado');
+  const nome = document.getElementById('edit-item-nome').value.trim();
+  const tipo = document.getElementById('edit-item-tipo').value;
+  const qty = parseInt(document.getElementById('edit-item-qty').value) || 0;
+  const min = parseInt(document.getElementById('edit-item-min').value) || 0;
+  const ref = document.getElementById('edit-item-ref').value.trim();
+  try {
+    const updated = await api(`/api/itens?id=${id}`, 'PUT', { nome, tipo, qty, min, ref });
+    const idx = itens.findIndex(x => x.id === id);
+    itens[idx] = normalizeItem(updated);
+    closeModal('modal-item');
+    renderEstoque();
+    toast('Item atualizado');
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
 /* ---- LOJAS ---- */
@@ -693,25 +743,36 @@ function renderLojas() {
   }).join('');
 }
 
-function adicionarLoja() {
+async function adicionarLoja() {
   const nome = document.getElementById('loja-nome').value.trim();
   const cod = document.getElementById('loja-cod').value.trim();
   const end = document.getElementById('loja-end').value.trim();
   const resp = document.getElementById('loja-resp').value.trim();
   if (!nome) { toast('Informe o nome da loja', 'error'); return; }
-  lojas.push({ id: nextLojaId++, nome, cod, end, resp });
-  saveAll();
-  document.getElementById('loja-nome').value = '';
-  document.getElementById('loja-cod').value = '';
-  document.getElementById('loja-end').value = '';
-  document.getElementById('loja-resp').value = '';
-  renderLojas(); toast('Loja cadastrada');
+  try {
+    const loja = await api('/api/lojas', 'POST', { nome, cod, end, resp });
+    lojas.push(normalizeLoja(loja));
+    document.getElementById('loja-nome').value = '';
+    document.getElementById('loja-cod').value = '';
+    document.getElementById('loja-end').value = '';
+    document.getElementById('loja-resp').value = '';
+    renderLojas();
+    toast('Loja cadastrada');
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
-function removerLoja(id) {
+async function removerLoja(id) {
   if (!confirm('Remover esta loja?')) return;
-  lojas = lojas.filter(l => l.id !== id);
-  saveAll(); renderLojas(); toast('Loja removida');
+  try {
+    await api(`/api/lojas?id=${id}`, 'DELETE');
+    lojas = lojas.filter(l => l.id !== id);
+    renderLojas();
+    toast('Loja removida');
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
 function abrirEditLoja(id) {
@@ -725,15 +786,22 @@ function abrirEditLoja(id) {
   document.getElementById('modal-loja').classList.add('show');
 }
 
-function salvarLojaEdit() {
+async function salvarLojaEdit() {
   const id = parseInt(document.getElementById('edit-loja-id').value);
-  const l = lojas.find(x => x.id === id);
-  if (!l) return;
-  l.nome = document.getElementById('edit-loja-nome').value.trim();
-  l.cod = document.getElementById('edit-loja-cod').value.trim();
-  l.end = document.getElementById('edit-loja-end').value.trim();
-  l.resp = document.getElementById('edit-loja-resp').value.trim();
-  saveAll(); closeModal('modal-loja'); renderLojas(); toast('Loja atualizada');
+  const nome = document.getElementById('edit-loja-nome').value.trim();
+  const cod = document.getElementById('edit-loja-cod').value.trim();
+  const end = document.getElementById('edit-loja-end').value.trim();
+  const resp = document.getElementById('edit-loja-resp').value.trim();
+  try {
+    const updated = await api(`/api/lojas?id=${id}`, 'PUT', { nome, cod, end, resp });
+    const idx = lojas.findIndex(x => x.id === id);
+    lojas[idx] = normalizeLoja(updated);
+    closeModal('modal-loja');
+    renderLojas();
+    toast('Loja atualizada');
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
 /* ---- SAÍDAS ---- */
@@ -760,7 +828,7 @@ function updateSaidaQtyMax() {
   }
 }
 
-function registrarSaida() {
+async function registrarSaida() {
   const lojaId = parseInt(document.getElementById('saida-loja').value);
   const itemId = parseInt(document.getElementById('saida-item').value);
   const qty = parseInt(document.getElementById('saida-qty').value) || 0;
@@ -769,18 +837,20 @@ function registrarSaida() {
   if (!itemId) { toast('Selecione o item', 'error'); return; }
   if (qty < 1) { toast('Quantidade inválida', 'error'); return; }
   const item = itens.find(i => i.id === itemId);
-  if (!item) { toast('Item não encontrado', 'error'); return; }
-  if (item.qty < qty) { toast(`Estoque insuficiente (${item.qty} disponíveis)`, 'error'); return; }
-  item.qty -= qty;
-  saidas.push({ id: nextSaidaId++, lojaId, itemId, qty, obs, data: new Date().toISOString() });
-  saveAll();
-  document.getElementById('saida-loja').value = '';
-  document.getElementById('saida-item').value = '';
-  document.getElementById('saida-qty').value = '1';
-  document.getElementById('saida-obs').value = '';
-  document.getElementById('saida-disponivel').textContent = '';
-  renderSaidasHoje();
-  toast(`Saída registrada — ${qty} un. de "${item.nome}"`);
+  if (item && item.qty < qty) { toast(`Estoque insuficiente (${item.qty} disponíveis)`, 'error'); return; }
+  try {
+    const result = await api('/api/saidas', 'POST', { loja_id: lojaId, item_id: itemId, qty, obs });
+    const idx = itens.findIndex(i => i.id === itemId);
+    if (idx !== -1) itens[idx] = normalizeItem(result.item);
+    saidas.push(normalizeSaida(result.saida));
+    document.getElementById('saida-qty').value = '1';
+    document.getElementById('saida-obs').value = '';
+    document.getElementById('saida-disponivel').textContent = '';
+    renderSaidas();
+    toast(`Saída registrada — ${qty} un. de "${item?.nome || 'item'}"`);
+  } catch (e) {
+    toast('Erro: ' + e.message, 'error');
+  }
 }
 
 function renderSaidasHoje() {
@@ -814,14 +884,14 @@ function renderHistorico() {
   const dataFim = document.getElementById('hist-data-fim').value;
 
   const selLoja = document.getElementById('hist-filtro-loja');
-  const opts = selLoja.querySelectorAll('option[data-loja]');
-  if (opts.length === 0) {
-    lojas.forEach(l => {
-      const o = document.createElement('option');
-      o.value = l.id; o.textContent = l.nome; o.setAttribute('data-loja', '1');
-      selLoja.appendChild(o);
-    });
-  }
+  const currentVal = selLoja.value;
+  selLoja.innerHTML = '<option value="">Todas as lojas</option>';
+  lojas.forEach(l => {
+    const o = document.createElement('option');
+    o.value = l.id; o.textContent = l.nome;
+    selLoja.appendChild(o);
+  });
+  if (currentVal) selLoja.value = currentVal;
 
   let lista = [...saidas].reverse();
   if (lojaFiltro) lista = lista.filter(s => s.lojaId === lojaFiltro);
@@ -880,7 +950,7 @@ function exportarCSV() {
 }
 
 /* ---- INIT ---- */
-renderDashboard();
+init();
 </script>
 </body>
 </html>
