@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controle de Estoque — Toners & Periféricos</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.0.0/dist/tabler-icons.min.css">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f5f5f3;
+    --surface: #ffffff;
+    --surface2: #f0efea;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --text: #1a1a18;
+    --text2: #5f5e5a;
+    --text3: #888780;
+    --accent: #185FA5;
+    --accent-bg: #e6f1fb;
+    --accent-text: #0c447c;
+    --success: #0F6E56;
+    --success-bg: #e1f5ee;
+    --success-text: #085041;
+    --danger: #A32D2D;
+    --danger-bg: #fcebeb;
+    --danger-text: #791f1f;
+    --warning: #854F0B;
+    --warning-bg: #faeeda;
+    --warning-text: #633806;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --nav-w: 220px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1a1a18;
+      --surface: #26261f;
+      --surface2: #2c2c28;
+      --border: rgba(255,255,255,0.10);
+      --border2: rgba(255,255,255,0.20);
+      --text: #f0efe8;
+      --text2: #b4b2a9;
+      --text3: #888780;
+      --accent: #378add;
+      --accent-bg: #0c447c;
+      --accent-text: #b5d4f4;
+      --success: #1d9e75;
+      --success-bg: #085041;
+      --success-text: #9fe1cb;
+      --danger: #e24b4a;
+      --danger-bg: #791f1f;
+      --danger-text: #f7c1c1;
+      --warning: #ef9f27;
+      --warning-bg: #633806;
+      --warning-text: #fac775;
+    }
+  }
+
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+  /* NAV */
+  nav { width: var(--nav-w); min-height: 100vh; background: var(--surface); border-right: 0.5px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; z-index: 10; }
+  .nav-logo { padding: 1.25rem 1rem 1rem; border-bottom: 0.5px solid var(--border); }
+  .nav-logo h1 { font-size: 14px; font-weight: 500; color: var(--text); line-height: 1.3; }
+  .nav-logo p { font-size: 11px; color: var(--text3); margin-top: 2px; }
+  .nav-links { padding: 0.75rem 0.5rem; flex: 1; }
+  .nav-link { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: var(--radius); cursor: pointer; font-size: 13.5px; color: var(--text2); transition: background 0.15s, color 0.15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-link i { font-size: 17px; flex-shrink: 0; }
+  .nav-link:hover { background: var(--surface2); color: var(--text); }
+  .nav-link.active { background: var(--accent-bg); color: var(--accent-text); font-weight: 500; }
+  .nav-footer { padding: 0.75rem 1rem 1rem; border-top: 0.5px solid var(--border); font-size: 11px; color: var(--text3); }
+
+  /* MAIN */
+  main { margin-left: var(--nav-w); flex: 1; padding: 2rem; min-height: 100vh; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-header { margin-bottom: 1.75rem; }
+  .page-header h2 { font-size: 20px; font-weight: 500; color: var(--text); }
+  .page-header p { font-size: 13.5px; color: var(--text2); margin-top: 4px; }
+
+  /* CARDS MÉTRICAS */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 1.75rem; }
+  .metric { background: var(--surface2); border-radius: var(--radius); padding: 1rem; }
+  .metric-label { font-size: 12px; color: var(--text3); margin-bottom: 6px; }
+  .metric-val { font-size: 22px; font-weight: 500; color: var(--text); }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  /* CARDS */
+  .card { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1rem; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+  .card-title { font-size: 14px; font-weight: 500; color: var(--text); }
+
+  /* TABELA */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; padding: 8px 12px; font-size: 11.5px; font-weight: 500; color: var(--text3); border-bottom: 0.5px solid var(--border); text-transform: uppercase; letter-spacing: 0.04em; }
+  td { padding: 10px 12px; border-bottom: 0.5px solid var(--border); color: var(--text); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  /* BADGE */
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 500; padding: 3px 8px; border-radius: 20px; }
+  .badge-ok { background: var(--success-bg); color: var(--success-text); }
+  .badge-low { background: var(--warning-bg); color: var(--warning-text); }
+  .badge-out { background: var(--danger-bg); color: var(--danger-text); }
+  .badge-info { background: var(--accent-bg); color: var(--accent-text); }
+  .badge-gray { background: var(--surface2); color: var(--text2); }
+
+  /* FORMULÁRIO */
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 1rem; }
+  .form-group { display: flex; flex-direction: column; gap: 5px; }
+  label { font-size: 12px; font-weight: 500; color: var(--text2); }
+  input, select, textarea { padding: 8px 10px; font-size: 13.5px; border: 0.5px solid var(--border2); border-radius: var(--radius); background: var(--surface); color: var(--text); outline: none; transition: border 0.15s, box-shadow 0.15s; font-family: inherit; }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(24,95,165,0.15); }
+  textarea { resize: vertical; min-height: 70px; }
+
+  /* BOTÕES */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; font-size: 13px; font-weight: 500; border-radius: var(--radius); border: 0.5px solid var(--border2); background: var(--surface); color: var(--text); cursor: pointer; transition: background 0.15s, transform 0.1s; font-family: inherit; }
+  .btn:hover { background: var(--surface2); }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { background: var(--accent-text); border-color: var(--accent-text); }
+  .btn-danger { background: var(--danger-bg); color: var(--danger-text); border-color: var(--danger); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-icon { padding: 6px; border-radius: var(--radius); border: 0.5px solid var(--border); background: none; cursor: pointer; color: var(--text2); transition: background 0.15s, color 0.15s; }
+  .btn-icon:hover { background: var(--surface2); color: var(--text); }
+  .btn-icon.danger:hover { background: var(--danger-bg); color: var(--danger-text); }
+
+  /* SAÍDA */
+  .saida-form { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.25rem; margin-bottom: 1.5rem; }
+  .saida-form h3 { font-size: 14px; font-weight: 500; margin-bottom: 1rem; color: var(--text); }
+
+  /* HISTÓRICO */
+  .hist-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--border); }
+  .hist-item:last-child { border-bottom: none; }
+  .hist-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 17px; }
+  .hist-icon.toner { background: var(--accent-bg); color: var(--accent-text); }
+  .hist-icon.periferico { background: var(--success-bg); color: var(--success-text); }
+  .hist-info { flex: 1; }
+  .hist-title { font-size: 13.5px; font-weight: 500; color: var(--text); }
+  .hist-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .hist-qty { font-size: 13px; font-weight: 500; color: var(--danger-text); }
+  .hist-date { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--surface); border: 0.5px solid var(--border2); border-radius: var(--radius-lg); padding: 12px 16px; font-size: 13px; color: var(--text); box-shadow: 0 4px 12px rgba(0,0,0,0.12); display: flex; align-items: center; gap: 8px; z-index: 999; transform: translateY(80px); opacity: 0; transition: transform 0.3s ease, opacity 0.3s ease; pointer-events: none; }
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success i { color: var(--success); }
+  .toast.error i { color: var(--danger); }
+
+  /* MODAL */
+  .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+  .modal-bg.show { display: flex; }
+  .modal { background: var(--surface); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; width: 100%; max-width: 440px; }
+  .modal h3 { font-size: 16px; font-weight: 500; margin-bottom: 1rem; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 1.25rem; }
+
+  /* EMPTY */
+  .empty { text-align: center; padding: 2.5rem; color: var(--text3); }
+  .empty i { font-size: 36px; margin-bottom: 0.75rem; display: block; }
+  .empty p { font-size: 13.5px; }
+
+  /* SEARCH */
+  .search-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 1rem; }
+  .search-input { flex: 1; }
+  .search-bar i { color: var(--text3); font-size: 17px; flex-shrink: 0; }
+
+  /* DIVIDER */
+  .divider { height: 0.5px; background: var(--border); margin: 1rem 0; }
+
+  /* ACTIONS ROW */
+  .actions-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* RESPONSIVE */
+  @media (max-width: 700px) {
+    :root { --nav-w: 0px; }
+    nav { transform: translateX(-220px); }
+    main { margin-left: 0; padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-logo">
+    <h1>Controle de Estoque</h1>
+    <p>Toners & Periféricos</p>
+  </div>
+  <div class="nav-links">
+    <button class="nav-link active" onclick="showPage('dashboard')"><i class="ti ti-layout-dashboard" aria-hidden="true"></i>Dashboard</button>
+    <button class="nav-link" onclick="showPage('saidas')"><i class="ti ti-arrow-bar-right" aria-hidden="true"></i>Registrar saída</button>
+    <button class="nav-link" onclick="showPage('estoque')"><i class="ti ti-box" aria-hidden="true"></i>Estoque</button>
+    <button class="nav-link" onclick="showPage('lojas')"><i class="ti ti-building-store" aria-hidden="true"></i>Lojas</button>
+    <button class="nav-link" onclick="showPage('historico')"><i class="ti ti-history" aria-hidden="true"></i>Histórico</button>
+  </div>
+  <div class="nav-footer">v1.0 — dados locais</div>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header">
+      <h2>Dashboard</h2>
+      <p>Resumo geral do estoque e movimentações</p>
+    </div>
+    <div class="metrics" id="dash-metrics"></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Estoque crítico</span></div>
+        <div id="dash-critico"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Últimas saídas</span></div>
+        <div id="dash-saidas"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGISTRAR SAÍDA -->
+  <div id="page-saidas" class="page">
+    <div class="page-header">
+      <h2>Registrar saída</h2>
+      <p>Registre a entrega de toners ou periféricos para uma loja</p>
+    </div>
+    <div class="saida-form">
+      <h3>Nova saída</h3>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Loja</label>
+          <select id="saida-loja"><option value="">Selecione a loja...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Item</label>
+          <select id="saida-item" onchange="updateSaidaQtyMax()"><option value="">Selecione o item...</option></select>
+        </div>
+        <div class="form-group">
+          <label>Quantidade</label>
+          <input type="number" id="saida-qty" min="1" value="1" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label>Observação (opcional)</label>
+          <input type="text" id="saida-obs" placeholder="ex: troca de cartucho">
+        </div>
+      </div>
+      <div id="saida-disponivel" style="font-size:12px;color:var(--text3);margin-bottom:0.75rem;"></div>
+      <button class="btn btn-primary" onclick="registrarSaida()"><i class="ti ti-check" aria-hidden="true"></i>Confirmar saída</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Saídas de hoje</span></div>
+      <div id="saidas-hoje"></div>
+    </div>
+  </div>
+
+  <!-- ESTOQUE -->
+  <div id="page-estoque" class="page">
+    <div class="page-header">
+      <h2>Estoque</h2>
+      <p>Gerencie toners e periféricos disponíveis</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Adicionar item</span>
+      </div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nome do item</label>
+          <input type="text" id="item-nome" placeholder="ex: Toner HP CF217A">
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="item-tipo">
+            <option value="toner">Toner</option>
+            <option value="periferico">Periférico</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Quantidade inicial</label>
+          <input type="number" id="item-qty" min="0" value="1">
+        </div>
+        <div class="form-group">
+          <label>Estoque mínimo (alerta)</label>
+          <input type="number" id="item-min" min="0" value="2">
+        </div>
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Modelo / Referência (opcional)</label>
+          <input type="text" id="item-ref" placeholder="ex: Para HP LaserJet Pro M15w">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="adicionarItem()"><i class="ti ti-plus" aria-hidden="true"></i>Adicionar ao estoque</button>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Itens em estoque</span>
+        <div class="actions-row">
+          <select id="filtro-tipo" onchange="renderEstoque()" style="font-size:12px;padding:5px 8px;">
+            <option value="">Todos os tipos</option>
+            <option value="toner">Toners</option>
+            <option value="periferico">Periféricos</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Item</th><th>Tipo</th><th>Qtd.</th><th>Status</th><th>Referência</th><th>Ações</th></tr></thead>
+          <tbody id="estoque-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOJAS -->
+  <div id="page-lojas" class="page">
+    <div class="page-header">
+      <h2>Lojas</h2>
+      <p>Cadastre e gerencie as lojas que recebem os itens</p>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Adicionar loja</span></div>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nome da loja</label>
+          <input type="text" id="loja-nome" placeholder="ex: Loja Centro">
+        </div>
+        <div class="form-group">
+          <label>Código / Identificador</label>
+          <input type="text" id="loja-cod" placeholder="ex: L001">
+        </div>
+        <div class="form-group">
+          <label>Endereço (opcional)</label>
+          <input type="text" id="loja-end" placeholder="ex: Rua das Flores, 100">
+        </div>
+        <div class="form-group">
+          <label>Responsável (opcional)</label>
+          <input type="text" id="loja-resp" placeholder="ex: João Silva">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="adicionarLoja()"><i class="ti ti-plus" aria-hidden="true"></i>Cadastrar loja</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Lojas cadastradas</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Nome</th><th>Código</th><th>Endereço</th><th>Responsável</th><th>Saídas</th><th>Ações</th></tr></thead>
+          <tbody id="lojas-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTÓRICO -->
+  <div id="page-historico" class="page">
+    <div class="page-header">
+      <h2>Histórico de saídas</h2>
+      <p>Registro completo de todas as movimentações</p>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Filtros</span>
+        <button class="btn btn-sm" onclick="exportarCSV()"><i class="ti ti-download" aria-hidden="true"></i>Exportar CSV</button>
+      </div>
+      <div class="form-grid" style="margin-bottom:0;">
+        <div class="form-group">
+          <label>Loja</label>
+          <select id="hist-filtro-loja" onchange="renderHistorico()"><option value="">Todas as lojas</option></select>
+        </div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="hist-filtro-tipo" onchange="renderHistorico()">
+            <option value="">Todos os tipos</option>
+            <option value="toner">Toners</option>
+            <option value="periferico">Periféricos</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Data inicial</label>
+          <input type="date" id="hist-data-ini" onchange="renderHistorico()">
+        </div>
+        <div class="form-group">
+          <label>Data final</label>
+          <input type="date" id="hist-data-fim" onchange="renderHistorico()">
+        </div>
+      </div>
+    </div>
+    <div id="historico-lista"></div>
+  </div>
+
+</main>
+
+<!-- MODAL editar item -->
+<div class="modal-bg" id="modal-item">
+  <div class="modal">
+    <h3>Editar item</h3>
+    <input type="hidden" id="edit-item-id">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="edit-item-nome">
+      </div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="edit-item-tipo">
+          <option value="toner">Toner</option>
+          <option value="periferico">Periférico</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Quantidade atual</label>
+        <input type="number" id="edit-item-qty" min="0">
+      </div>
+      <div class="form-group">
+        <label>Estoque mínimo</label>
+        <input type="number" id="edit-item-min" min="0">
+      </div>
+      <div class="form-group" style="grid-column:1/-1;">
+        <label>Referência</label>
+        <input type="text" id="edit-item-ref">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-item')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarItemEdit()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL editar loja -->
+<div class="modal-bg" id="modal-loja">
+  <div class="modal">
+    <h3>Editar loja</h3>
+    <input type="hidden" id="edit-loja-id">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nome</label>
+        <input type="text" id="edit-loja-nome">
+      </div>
+      <div class="form-group">
+        <label>Código</label>
+        <input type="text" id="edit-loja-cod">
+      </div>
+      <div class="form-group">
+        <label>Endereço</label>
+        <input type="text" id="edit-loja-end">
+      </div>
+      <div class="form-group">
+        <label>Responsável</label>
+        <input type="text" id="edit-loja-resp">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal('modal-loja')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarLojaEdit()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <i class="ti ti-check" id="toast-icon" aria-hidden="true"></i>
+  <span id="toast-msg"></span>
+</div>
+
+<script>
+/* ---- DATA ---- */
+function load(key, def) { try { return JSON.parse(localStorage.getItem(key)) || def; } catch { return def; } }
+function save(key, val) { localStorage.setItem(key, JSON.stringify(val)); }
+
+let itens = load('itens', [
+  { id: 1, nome: 'Toner HP CF217A', tipo: 'toner', qty: 5, min: 2, ref: 'HP LaserJet Pro M15w' },
+  { id: 2, nome: 'Toner Brother TN-1060', tipo: 'toner', qty: 1, min: 2, ref: 'Brother HL-1112' },
+  { id: 3, nome: 'Cabo HDMI 1.8m', tipo: 'periferico', qty: 8, min: 3, ref: '' },
+  { id: 4, nome: 'Mouse USB Logitech', tipo: 'periferico', qty: 0, min: 2, ref: '' },
+]);
+let lojas = load('lojas', [
+  { id: 1, nome: 'Loja Centro', cod: 'L001', end: 'Av. Afonso Pena, 500', resp: 'Ana Costa' },
+  { id: 2, nome: 'Loja Savassi', cod: 'L002', end: 'Rua Pernambuco, 230', resp: 'Carlos Melo' },
+]);
+let saidas = load('saidas', []);
+let nextItemId = load('nextItemId', 5);
+let nextLojaId = load('nextLojaId', 3);
+let nextSaidaId = load('nextSaidaId', 1);
+
+function saveAll() {
+  save('itens', itens); save('lojas', lojas); save('saidas', saidas);
+  save('nextItemId', nextItemId); save('nextLojaId', nextLojaId); save('nextSaidaId', nextSaidaId);
+}
+
+/* ---- NAV ---- */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+  if (id === 'dashboard') renderDashboard();
+  if (id === 'estoque') renderEstoque();
+  if (id === 'lojas') renderLojas();
+  if (id === 'saidas') renderSaidas();
+  if (id === 'historico') renderHistorico();
+}
+
+/* ---- TOAST ---- */
+function toast(msg, type = 'success') {
+  const t = document.getElementById('toast');
+  const ic = document.getElementById('toast-icon');
+  document.getElementById('toast-msg').textContent = msg;
+  t.className = 'toast ' + type;
+  ic.className = type === 'success' ? 'ti ti-check' : 'ti ti-x';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ---- MODAL ---- */
+function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+/* ---- STATUS BADGE ---- */
+function statusBadge(item) {
+  if (item.qty === 0) return `<span class="badge badge-out"><i class="ti ti-x" aria-hidden="true"></i>Sem estoque</span>`;
+  if (item.qty <= item.min) return `<span class="badge badge-low"><i class="ti ti-alert-triangle" aria-hidden="true"></i>Estoque baixo</span>`;
+  return `<span class="badge badge-ok"><i class="ti ti-check" aria-hidden="true"></i>OK</span>`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric' }) + ' ' +
+    d.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+}
+
+function today() { return new Date().toISOString().slice(0,10); }
+
+/* ---- DASHBOARD ---- */
+function renderDashboard() {
+  const totalItens = itens.length;
+  const totalQty = itens.reduce((a, i) => a + i.qty, 0);
+  const criticos = itens.filter(i => i.qty <= i.min).length;
+  const hojeSaidas = saidas.filter(s => s.data.startsWith(today())).length;
+
+  document.getElementById('dash-metrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Tipos de item</div><div class="metric-val">${totalItens}</div></div>
+    <div class="metric"><div class="metric-label">Unidades em estoque</div><div class="metric-val">${totalQty}</div></div>
+    <div class="metric"><div class="metric-label">Estoque crítico</div><div class="metric-val" style="color:var(--danger)">${criticos}</div></div>
+    <div class="metric"><div class="metric-label">Saídas hoje</div><div class="metric-val">${hojeSaidas}</div></div>
+    <div class="metric"><div class="metric-label">Lojas cadastradas</div><div class="metric-val">${lojas.length}</div></div>
+    <div class="metric"><div class="metric-label">Total de saídas</div><div class="metric-val">${saidas.length}</div></div>
+  `;
+
+  const criticoItens = itens.filter(i => i.qty <= i.min);
+  const cEl = document.getElementById('dash-critico');
+  if (criticoItens.length === 0) {
+    cEl.innerHTML = `<div class="empty"><i class="ti ti-circle-check" aria-hidden="true"></i><p>Nenhum item crítico</p></div>`;
+  } else {
+    cEl.innerHTML = criticoItens.map(i => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:0.5px solid var(--border);">
+        <div>
+          <div style="font-size:13px;font-weight:500;">${i.nome}</div>
+          <div style="font-size:11px;color:var(--text3);">${i.tipo === 'toner' ? 'Toner' : 'Periférico'}</div>
+        </div>
+        <div style="text-align:right;">
+          ${statusBadge(i)}
+          <div style="font-size:11px;color:var(--text3);margin-top:3px;">${i.qty} un.</div>
+        </div>
+      </div>`).join('');
+  }
+
+  const ultSaidas = [...saidas].reverse().slice(0, 5);
+  const sEl = document.getElementById('dash-saidas');
+  if (ultSaidas.length === 0) {
+    sEl.innerHTML = `<div class="empty"><i class="ti ti-arrow-bar-right" aria-hidden="true"></i><p>Nenhuma saída registrada</p></div>`;
+  } else {
+    sEl.innerHTML = ultSaidas.map(s => {
+      const item = itens.find(i => i.id === s.itemId);
+      const loja = lojas.find(l => l.id === s.lojaId);
+      return `
+        <div class="hist-item">
+          <div class="hist-icon ${item?.tipo || 'toner'}"><i class="ti ti-${item?.tipo === 'periferico' ? 'device-laptop' : 'printer'}" aria-hidden="true"></i></div>
+          <div class="hist-info">
+            <div class="hist-title">${item?.nome || 'Item removido'}</div>
+            <div class="hist-sub">${loja?.nome || 'Loja removida'}</div>
+            <div class="hist-date">${fmtDate(s.data)}</div>
+          </div>
+          <div class="hist-qty">−${s.qty}</div>
+        </div>`;
+    }).join('');
+  }
+}
+
+/* ---- ESTOQUE ---- */
+function renderEstoque() {
+  const filtro = document.getElementById('filtro-tipo').value;
+  const lista = filtro ? itens.filter(i => i.tipo === filtro) : itens;
+  const tbody = document.getElementById('estoque-tbody');
+  if (lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><i class="ti ti-box" aria-hidden="true"></i><p>Nenhum item cadastrado</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = lista.map(i => `
+    <tr>
+      <td style="font-weight:500;">${i.nome}</td>
+      <td><span class="badge badge-${i.tipo === 'toner' ? 'info' : 'gray'}">${i.tipo === 'toner' ? 'Toner' : 'Periférico'}</span></td>
+      <td>${i.qty} un.</td>
+      <td>${statusBadge(i)}</td>
+      <td style="color:var(--text2);font-size:12px;">${i.ref || '—'}</td>
+      <td>
+        <div class="actions-row">
+          <button class="btn-icon" onclick="abrirEditItem(${i.id})" title="Editar"><i class="ti ti-edit" aria-hidden="true"></i></button>
+          <button class="btn-icon" onclick="addStock(${i.id})" title="Adicionar estoque"><i class="ti ti-plus" aria-hidden="true"></i></button>
+          <button class="btn-icon danger" onclick="removerItem(${i.id})" title="Remover"><i class="ti ti-trash" aria-hidden="true"></i></button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function adicionarItem() {
+  const nome = document.getElementById('item-nome').value.trim();
+  const tipo = document.getElementById('item-tipo').value;
+  const qty = parseInt(document.getElementById('item-qty').value) || 0;
+  const min = parseInt(document.getElementById('item-min').value) || 0;
+  const ref = document.getElementById('item-ref').value.trim();
+  if (!nome) { toast('Informe o nome do item', 'error'); return; }
+  itens.push({ id: nextItemId++, nome, tipo, qty, min, ref });
+  saveAll();
+  document.getElementById('item-nome').value = '';
+  document.getElementById('item-qty').value = '1';
+  document.getElementById('item-min').value = '2';
+  document.getElementById('item-ref').value = '';
+  renderEstoque();
+  toast('Item adicionado ao estoque');
+}
+
+function addStock(id) {
+  const q = parseInt(prompt('Quantas unidades adicionar?', '1'));
+  if (!q || q < 1) return;
+  const i = itens.find(x => x.id === id);
+  if (i) { i.qty += q; saveAll(); renderEstoque(); toast(`+${q} unidades adicionadas`); }
+}
+
+function removerItem(id) {
+  if (!confirm('Remover este item do estoque?')) return;
+  itens = itens.filter(i => i.id !== id);
+  saveAll(); renderEstoque(); toast('Item removido');
+}
+
+function abrirEditItem(id) {
+  const i = itens.find(x => x.id === id);
+  if (!i) return;
+  document.getElementById('edit-item-id').value = id;
+  document.getElementById('edit-item-nome').value = i.nome;
+  document.getElementById('edit-item-tipo').value = i.tipo;
+  document.getElementById('edit-item-qty').value = i.qty;
+  document.getElementById('edit-item-min').value = i.min;
+  document.getElementById('edit-item-ref').value = i.ref;
+  document.getElementById('modal-item').classList.add('show');
+}
+
+function salvarItemEdit() {
+  const id = parseInt(document.getElementById('edit-item-id').value);
+  const i = itens.find(x => x.id === id);
+  if (!i) return;
+  i.nome = document.getElementById('edit-item-nome').value.trim();
+  i.tipo = document.getElementById('edit-item-tipo').value;
+  i.qty = parseInt(document.getElementById('edit-item-qty').value) || 0;
+  i.min = parseInt(document.getElementById('edit-item-min').value) || 0;
+  i.ref = document.getElementById('edit-item-ref').value.trim();
+  saveAll(); closeModal('modal-item'); renderEstoque(); toast('Item atualizado');
+}
+
+/* ---- LOJAS ---- */
+function renderLojas() {
+  const tbody = document.getElementById('lojas-tbody');
+  if (lojas.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><i class="ti ti-building-store" aria-hidden="true"></i><p>Nenhuma loja cadastrada</p></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = lojas.map(l => {
+    const count = saidas.filter(s => s.lojaId === l.id).length;
+    return `
+      <tr>
+        <td style="font-weight:500;">${l.nome}</td>
+        <td><span class="badge badge-gray">${l.cod}</span></td>
+        <td style="color:var(--text2);font-size:12px;">${l.end || '—'}</td>
+        <td style="color:var(--text2);font-size:12px;">${l.resp || '—'}</td>
+        <td>${count} saída${count !== 1 ? 's' : ''}</td>
+        <td>
+          <div class="actions-row">
+            <button class="btn-icon" onclick="abrirEditLoja(${l.id})" title="Editar"><i class="ti ti-edit" aria-hidden="true"></i></button>
+            <button class="btn-icon danger" onclick="removerLoja(${l.id})" title="Remover"><i class="ti ti-trash" aria-hidden="true"></i></button>
+          </div>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+function adicionarLoja() {
+  const nome = document.getElementById('loja-nome').value.trim();
+  const cod = document.getElementById('loja-cod').value.trim();
+  const end = document.getElementById('loja-end').value.trim();
+  const resp = document.getElementById('loja-resp').value.trim();
+  if (!nome) { toast('Informe o nome da loja', 'error'); return; }
+  lojas.push({ id: nextLojaId++, nome, cod, end, resp });
+  saveAll();
+  document.getElementById('loja-nome').value = '';
+  document.getElementById('loja-cod').value = '';
+  document.getElementById('loja-end').value = '';
+  document.getElementById('loja-resp').value = '';
+  renderLojas(); toast('Loja cadastrada');
+}
+
+function removerLoja(id) {
+  if (!confirm('Remover esta loja?')) return;
+  lojas = lojas.filter(l => l.id !== id);
+  saveAll(); renderLojas(); toast('Loja removida');
+}
+
+function abrirEditLoja(id) {
+  const l = lojas.find(x => x.id === id);
+  if (!l) return;
+  document.getElementById('edit-loja-id').value = id;
+  document.getElementById('edit-loja-nome').value = l.nome;
+  document.getElementById('edit-loja-cod').value = l.cod;
+  document.getElementById('edit-loja-end').value = l.end;
+  document.getElementById('edit-loja-resp').value = l.resp;
+  document.getElementById('modal-loja').classList.add('show');
+}
+
+function salvarLojaEdit() {
+  const id = parseInt(document.getElementById('edit-loja-id').value);
+  const l = lojas.find(x => x.id === id);
+  if (!l) return;
+  l.nome = document.getElementById('edit-loja-nome').value.trim();
+  l.cod = document.getElementById('edit-loja-cod').value.trim();
+  l.end = document.getElementById('edit-loja-end').value.trim();
+  l.resp = document.getElementById('edit-loja-resp').value.trim();
+  saveAll(); closeModal('modal-loja'); renderLojas(); toast('Loja atualizada');
+}
+
+/* ---- SAÍDAS ---- */
+function renderSaidas() {
+  const selLoja = document.getElementById('saida-loja');
+  const selItem = document.getElementById('saida-item');
+  selLoja.innerHTML = '<option value="">Selecione a loja...</option>' +
+    lojas.map(l => `<option value="${l.id}">${l.nome} (${l.cod})</option>`).join('');
+  selItem.innerHTML = '<option value="">Selecione o item...</option>' +
+    itens.map(i => `<option value="${i.id}">[${i.tipo === 'toner' ? 'Toner' : 'Periférico'}] ${i.nome} — ${i.qty} un.</option>`).join('');
+  document.getElementById('saida-disponivel').textContent = '';
+  renderSaidasHoje();
+}
+
+function updateSaidaQtyMax() {
+  const id = parseInt(document.getElementById('saida-item').value);
+  const item = itens.find(i => i.id === id);
+  const el = document.getElementById('saida-disponivel');
+  if (item) {
+    el.textContent = `Disponível: ${item.qty} unidade${item.qty !== 1 ? 's' : ''}`;
+    document.getElementById('saida-qty').max = item.qty;
+  } else {
+    el.textContent = '';
+  }
+}
+
+function registrarSaida() {
+  const lojaId = parseInt(document.getElementById('saida-loja').value);
+  const itemId = parseInt(document.getElementById('saida-item').value);
+  const qty = parseInt(document.getElementById('saida-qty').value) || 0;
+  const obs = document.getElementById('saida-obs').value.trim();
+  if (!lojaId) { toast('Selecione a loja', 'error'); return; }
+  if (!itemId) { toast('Selecione o item', 'error'); return; }
+  if (qty < 1) { toast('Quantidade inválida', 'error'); return; }
+  const item = itens.find(i => i.id === itemId);
+  if (!item) { toast('Item não encontrado', 'error'); return; }
+  if (item.qty < qty) { toast(`Estoque insuficiente (${item.qty} disponíveis)`, 'error'); return; }
+  item.qty -= qty;
+  saidas.push({ id: nextSaidaId++, lojaId, itemId, qty, obs, data: new Date().toISOString() });
+  saveAll();
+  document.getElementById('saida-loja').value = '';
+  document.getElementById('saida-item').value = '';
+  document.getElementById('saida-qty').value = '1';
+  document.getElementById('saida-obs').value = '';
+  document.getElementById('saida-disponivel').textContent = '';
+  renderSaidasHoje();
+  toast(`Saída registrada — ${qty} un. de "${item.nome}"`);
+}
+
+function renderSaidasHoje() {
+  const h = saidas.filter(s => s.data.startsWith(today())).reverse();
+  const el = document.getElementById('saidas-hoje');
+  if (h.length === 0) {
+    el.innerHTML = `<div class="empty"><i class="ti ti-calendar" aria-hidden="true"></i><p>Nenhuma saída registrada hoje</p></div>`;
+    return;
+  }
+  el.innerHTML = h.map(s => {
+    const item = itens.find(i => i.id === s.itemId);
+    const loja = lojas.find(l => l.id === s.lojaId);
+    return `
+      <div class="hist-item">
+        <div class="hist-icon ${item?.tipo || 'toner'}"><i class="ti ti-${item?.tipo === 'periferico' ? 'device-laptop' : 'printer'}" aria-hidden="true"></i></div>
+        <div class="hist-info">
+          <div class="hist-title">${item?.nome || 'Item removido'}</div>
+          <div class="hist-sub">${loja?.nome || 'Loja removida'}${s.obs ? ' — ' + s.obs : ''}</div>
+          <div class="hist-date">${fmtDate(s.data)}</div>
+        </div>
+        <div class="hist-qty">−${s.qty}</div>
+      </div>`;
+  }).join('');
+}
+
+/* ---- HISTÓRICO ---- */
+function renderHistorico() {
+  const lojaFiltro = parseInt(document.getElementById('hist-filtro-loja').value) || 0;
+  const tipoFiltro = document.getElementById('hist-filtro-tipo').value;
+  const dataIni = document.getElementById('hist-data-ini').value;
+  const dataFim = document.getElementById('hist-data-fim').value;
+
+  const selLoja = document.getElementById('hist-filtro-loja');
+  const opts = selLoja.querySelectorAll('option[data-loja]');
+  if (opts.length === 0) {
+    lojas.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.id; o.textContent = l.nome; o.setAttribute('data-loja', '1');
+      selLoja.appendChild(o);
+    });
+  }
+
+  let lista = [...saidas].reverse();
+  if (lojaFiltro) lista = lista.filter(s => s.lojaId === lojaFiltro);
+  if (tipoFiltro) lista = lista.filter(s => {
+    const item = itens.find(i => i.id === s.itemId);
+    return item && item.tipo === tipoFiltro;
+  });
+  if (dataIni) lista = lista.filter(s => s.data >= dataIni);
+  if (dataFim) lista = lista.filter(s => s.data.slice(0,10) <= dataFim);
+
+  const el = document.getElementById('historico-lista');
+  if (lista.length === 0) {
+    el.innerHTML = `<div class="card"><div class="empty"><i class="ti ti-history" aria-hidden="true"></i><p>Nenhuma saída encontrada com estes filtros</p></div></div>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">${lista.length} saída${lista.length !== 1 ? 's' : ''} encontrada${lista.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Loja</th><th>Qtd.</th><th>Observação</th></tr></thead>
+          <tbody>
+            ${lista.map(s => {
+              const item = itens.find(i => i.id === s.itemId);
+              const loja = lojas.find(l => l.id === s.lojaId);
+              return `<tr>
+                <td style="font-size:12px;color:var(--text2);white-space:nowrap;">${fmtDate(s.data)}</td>
+                <td style="font-weight:500;">${item?.nome || '<em>Removido</em>'}</td>
+                <td><span class="badge badge-${item?.tipo === 'toner' ? 'info' : 'gray'}">${item?.tipo === 'toner' ? 'Toner' : 'Periférico'}</span></td>
+                <td>${loja?.nome || '<em>Removida</em>'}</td>
+                <td style="font-weight:500;color:var(--danger-text);">−${s.qty}</td>
+                <td style="font-size:12px;color:var(--text2);">${s.obs || '—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+/* ---- EXPORT CSV ---- */
+function exportarCSV() {
+  let csv = 'Data,Item,Tipo,Loja,Quantidade,Observação\n';
+  [...saidas].reverse().forEach(s => {
+    const item = itens.find(i => i.id === s.itemId);
+    const loja = lojas.find(l => l.id === s.lojaId);
+    csv += `"${fmtDate(s.data)}","${item?.nome || ''}","${item?.tipo || ''}","${loja?.nome || ''}","${s.qty}","${s.obs || ''}"\n`;
+  });
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'saidas-' + today() + '.csv';
+  a.click();
+  toast('CSV exportado');
+}
+
+/* ---- INIT ---- */
+renderDashboard();
+</script>
+</body>
+</html>
