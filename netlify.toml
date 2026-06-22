@@ -1,2 +1,17 @@
 [build]
   publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains; preload"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+
+[[redirects]]
+  from = "http://controle-de-estq.netlify.app/*"
+  to = "https://controle-de-estq.netlify.app/:splat"
+  status = 301
+  force = true
