@@ -1,0 +1,13 @@
+{
+  "name": "controle-de-estoque",
+  "version": "2.0.0",
+  "type": "module",
+  "dependencies": {
+    "@netlify/database": "*",
+    "drizzle-orm": "beta"
+  },
+  "devDependencies": {
+    "@netlify/functions": "*",
+    "drizzle-kit": "beta"
+  }
+}
